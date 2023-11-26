@@ -1,28 +1,49 @@
+from pathlib import Path
 import multiprocessing as mp
+
+from datasets import Dataset, DatasetDict
+from torchvision.io import read_video
 
 from datasets import Dataset
 from torchvision.io import read_video
 
 
-def tensor_dataset_from_fps(fps):
-    """Given a list of filepaths, return a dataset"""
-    ds = Dataset.from_dict({"fp": fps})
-    ds = ds.map(
-        vid_map,
-        batched=True,
-        num_proc=mp.cpu_count() - 1,
-    )
-    return ds
+def tensor_dataset_from_fps(fp_out="vox_celeb", workers=None):
+    """Create a tensor dataset from a list of video filepaths"""
+    "video-preprocessing/data"
+    splits = {}
+    for split in ["train", "test"]:
+        fps = list((Path("Path") / split).glob("**/*.mp4"))
+        fps = fps[:10]
+        ds = Dataset.from_dict({"fp": fps})
+        ds = ds.map(
+            read_video_from_example,
+            batched=False,
+            num_proc=workers or mp.cpu_count() - 1,
+        )
+        splits[split] = ds
+    dsd = DatasetDict(splits)
+    dsd.save_to_disk(fp_out)
 
 
-def vid_map(batch):
-    batch = {"audio": [], "video": [], "audio_fps": [], "video_fps": [], **batch}
-    for fp in batch["fp"]:
-        # TODO: probably want to re-encode everything to the same FPS
-        video, audio, metadata = read_video(fp)
-        audio = audio[0]  # discard second channel, if it exists
-        batch["audio"].append(audio)
-        batch["video"].append(video)
-        batch["audio_fps"].append(metadata["audio_fps"])
-        batch["video_fps"].append(metadata["video_fps"])
-    return batch
+def read_video_from_example(example):
+    """Read a video from a dataset example"""
+    fp = example["fp"]
+    video, audio, info = read_video(fp, pts_unit="sec")
+    return {"video": video, "audio": audio, "info": info}
+
+
+def cli():
+    """Command line interface"""
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--workers", type=int, default=None)
+    parser.add_argument("--fp-out", type=str, default="vox_celeb")
+    args = parser.parse_args()
+
+    tensor_dataset_from_fps(**vars(args))
+
+
+if __name__ == "__main__":
+    cli()
