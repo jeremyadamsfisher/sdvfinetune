@@ -2,14 +2,10 @@ from typing import Any
 
 import pytorch_lightning as pl
 import torch
-from diffusers import (
-    AutoencoderKL,
-    UNet2DConditionModel,
-)
+from diffusers import AutoencoderKL, UNet2DConditionModel
 from PIL import Image
-from sklearn.preprocessing import normalize
 from torchvision import transforms as tfms
-from tqdm import tqdm, trange
+from tqdm import tqdm
 from transformers import CLIPTextModel, CLIPTokenizer
 from transformers import logging as tsmrs_logging
 
@@ -65,6 +61,7 @@ class StableDiffusion(pl.LightningModule):
         scheduler: Any,
         unet: UNet2DConditionModel,
         vae: AutoencoderKL,
+        lr=None,
         rng=None,
     ):
         super().__init__()
@@ -76,6 +73,7 @@ class StableDiffusion(pl.LightningModule):
         if rng is None:
             rng = torch.manual_seed(42)
         self.rng = rng
+        self.lr = lr
 
     def embed_prompt(self, prompt: str) -> torch.tensor:
         text_input = self.tokenizer(
@@ -149,3 +147,6 @@ class StableDiffusion(pl.LightningModule):
             t = t.to(torch.float32).to(self.device)
             l = self.denoise(prompt_embedding, l, t, guidance_scale, i)
         return decompress(l, self.vae, as_pil=as_pil)
+
+    def configure_optimizers(self):
+        return torch.optim.SGD(self.unet, lr=self.lr)

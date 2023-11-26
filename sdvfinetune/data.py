@@ -1,59 +1,28 @@
-# %%
-import datasets
 import multiprocessing as mp
-from datasets import Dataset
 
-# %%
-import torchaudio
-import numpy as np
-import IPython.display as ipd
+from datasets import Dataset
 from torchvision.io import read_video
 
-# %%
-from pathlib import Path
-import subprocess
-from tqdm import tqdm
 
-# %%
-base = Path("/home/jeremy/Desktop/video-retalking/video-preprocessing/data")
-vids = list(trn.glob("*/*.mp4"))
-[fp.name for fp in trn_vids][:5]
+def tensor_dataset_from_fps(fps):
+    """Given a list of filepaths, return a dataset"""
+    ds = Dataset.from_dict({"fp": fps})
+    ds = ds.map(
+        vid_map,
+        batched=True,
+        num_proc=mp.cpu_count() - 1,
+    )
+    return ds
 
-# %%
-ds = Dataset.from_dict({"fp": [str(fp) for fp in trn_vids]})
 
-# %%
 def vid_map(batch):
-    proc = {"audio": [], "video": [], "fp": []}
+    batch = {"audio": [], "video": [], "audio_fps": [], "video_fps": [], **batch}
     for fp in batch["fp"]:
-        video, audio, meta = read_video(fp)
-        audio = audio[0],  # discard second channel, if it exists
-        T, H, W, C = video.shape
-        if T == 0:
-            print(f"skipping {fp}")
-            continue
-        proc["audio"].append(audio)
-        proc["video"].append(video)
-        proc["fp"].append(fp)
-    return proc
-
-dds = ds.map(
-    vid_map,
-    batched=True,
-    remove_columns=["fp"],
-    # num_proc=mp.cpu_count() - 1,
-)
-
-# %%
-
-
-# %%
-
-
-# %%
-Dataset
-
-# %%
-
-
-
+        # TODO: probably want to re-encode everything to the same FPS
+        video, audio, metadata = read_video(fp)
+        audio = audio[0]  # discard second channel, if it exists
+        batch["audio"].append(audio)
+        batch["video"].append(video)
+        batch["audio_fps"].append(metadata["audio_fps"])
+        batch["video_fps"].append(metadata["video_fps"])
+    return batch
