@@ -1,0 +1,10 @@
+dataset
+diffusers
+lightning
+matplotlib
+numpy
+Pillow
+scikit-learn
+torch
+torchvision
+transformers
