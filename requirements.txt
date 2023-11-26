@@ -1,5 +1,8 @@
-dataset
+av
+datasets
 diffusers
+hydra-core
+jupyterlab
 lightning
 matplotlib
 numpy
