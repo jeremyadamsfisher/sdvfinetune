@@ -2,6 +2,7 @@ av
 datasets
 diffusers
 hydra-core
+imageio
 jupyterlab
 lightning
 matplotlib

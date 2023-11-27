@@ -250,3 +250,5 @@ dataset_cache
 .secrets*
 service_account*
 video-preprocessing
+youtube-taichi
+data

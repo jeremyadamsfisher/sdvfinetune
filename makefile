@@ -5,6 +5,14 @@ CONDA=micromamba
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
+download:  ## download vox celeb
+	@cog run python -W ignore load_videos_improved.py \
+		--metadata vox-metadata.csv \
+		--format .mp4 \
+		--out_folder ./data \
+		--workers $$(python -c 'import multiprocessing as m; print(m.cpu_count() - 1)') \
+		--youtube 'yt-dlp'
+
 release:  ## bump patch version
 	@bump-my-version bump patch
 	@git push
