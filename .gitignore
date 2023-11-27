@@ -251,4 +251,4 @@ dataset_cache
 service_account*
 video-preprocessing
 youtube-taichi
-data
+data*
