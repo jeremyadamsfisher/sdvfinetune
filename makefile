@@ -8,9 +8,8 @@ help:
 download:  ## download vox celeb
 	@cog run python -W ignore load_videos_improved.py \
 		--metadata vox-metadata.csv \
-		--format .mp4 \
 		--out_folder ./data \
-		--workers $$(python -c 'import multiprocessing as m; print(m.cpu_count() - 1)') \
+		--workers 6 \
 		--youtube 'yt-dlp'
 
 release:  ## bump patch version
