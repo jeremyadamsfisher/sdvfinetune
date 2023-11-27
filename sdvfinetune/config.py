@@ -1,3 +1,4 @@
+from typing import List
 from dataclasses import dataclass
 
 
@@ -11,6 +12,7 @@ class Config:
     accumulate_grad_batches: int
     batch_size: int
     num_workers: int
+    adam_betas: List[float]
 
     profile: bool
     disable_wandb: bool
