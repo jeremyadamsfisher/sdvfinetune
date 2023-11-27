@@ -27,6 +27,7 @@ decorator==5.1.1
 defusedxml==0.7.1
 diffusers==0.23.1
 dill==0.3.7
+einops==0.7.0
 exceptiongroup==1.2.0
 executing==2.0.1
 fastapi==0.98.0

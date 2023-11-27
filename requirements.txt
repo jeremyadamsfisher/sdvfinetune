@@ -1,6 +1,7 @@
 av
 datasets
 diffusers
+einops
 hydra-core
 imageio
 jupyterlab
