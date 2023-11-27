@@ -5,7 +5,7 @@ import torch
 import torch.nn.functional as F
 from diffusers import AutoencoderKL, UNet2DConditionModel
 from torchvision import transforms as tfms
-from transformers import CLIPTextModel, CLIPTokenizer
+from transformers import Wav2Vec2Processor
 from transformers import logging as tsmrs_logging
 
 tsmrs_logging.set_verbosity_error()
@@ -17,19 +17,17 @@ to_tensor = tfms.ToTensor()
 VAE_TO_UNET_SCALING_FACTOR = 0.18215
 
 
-class StableDiffusion(pl.LightningModule):
+class StableDiffusionVideoFinetuneLightningModule(pl.LightningModule):
     def __init__(
         self,
-        tokenizer: CLIPTokenizer,
-        text_encoder: CLIPTextModel,
+        audio_featurizer: Wav2Vec2Processor,
         scheduler: Any,
         unet: UNet2DConditionModel,
         vae: AutoencoderKL,
         lr=None,
     ):
         super().__init__()
-        self.tokenizer = tokenizer
-        self.text_encoder = text_encoder
+        self.audio_featurizer = audio_featurizer
         self.scheduler = scheduler
         self.unet = unet
         self.vae = vae
@@ -40,9 +38,10 @@ class StableDiffusion(pl.LightningModule):
 
     def _step(self, batch):
         # Get an arbitrary video frame, until SVD is released
-        audio, video = batch["audio"], batch["video"]
+        video, audio = batch
         BS, T, H, W, C = video.shape
-        frames = batch[:, 0, :, :, :]  # BTHWC -> BHWC
+        frames = batch[:, 0, :, :, :]
+        assert frames.shape == (BS, H, W, C)
 
         # Encode the video frames
         with torch.no_grad():
@@ -52,8 +51,13 @@ class StableDiffusion(pl.LightningModule):
                 * VAE_TO_UNET_SCALING_FACTOR
             )
 
-        # Embed the prompt; to be replaced by the wav2vec embeddings
-        prompt_embedding = self.embed_prompt("A person is speaking")
+        # Encode the audio
+        audio_features = self.audio_featurizer(
+            audio,
+            sampling_rate=16_000,
+            return_tensors="pt",
+            padding=True,
+        )
 
         # Add some noise
         timesteps = torch.randint(
@@ -67,7 +71,7 @@ class StableDiffusion(pl.LightningModule):
         noisy_latents = self.scheduler.add_noise(latents, noise, timesteps)
 
         # Predict the noise
-        noise_pred = self.unet(noisy_latents, timesteps, prompt_embedding).sample
+        noise_pred = self.unet(noisy_latents, timesteps, audio_features).sample
 
         # Compute the loss
         loss = F.mse_loss(noise_pred, latents)
