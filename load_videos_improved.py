@@ -84,7 +84,7 @@ def crop_video(video_file, start_time, end_time, left, top, right, bot, out_file
         "-t",
         str(end_time - start_time),
         "-vf",
-        "crop={}:{}:{}:{}, scale=1024:576".format(right - left, bot - top, left, top),
+        "crop={}:{}:{}:{}, scale=1024:576, fps=24".format(right - left, bot - top, left, top),
         "-c:a",
         "copy",
         out_file,

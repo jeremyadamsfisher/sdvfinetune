@@ -1,45 +1,68 @@
-import multiprocessing as mp
+import torch
+from einops import rearrange
+from torch.utils.data import Dataset, DataLoader
 from pathlib import Path
-
-from datasets import Dataset, DatasetDict
 from torchvision.io import read_video
+from pytorch_lightning import LightningDataModule
 
 
-def tensor_dataset_from_fps(fp_out="vox_celeb", workers=None):
-    """Create a tensor dataset from a list of video filepaths"""
-    "video-preprocessing/data"
-    splits = {}
-    for split in ["train", "test"]:
-        fps = list((Path("Path") / split).glob("**/*.mp4"))
-        ds = Dataset.from_dict({"fp": fps})
-        ds = ds.map(
-            read_video_from_example,
-            batched=False,
-            num_proc=workers or mp.cpu_count() - 1,
+class VideoDataset(Dataset):
+    def __init__(self, data_dir):
+        self.fps = sorted(Path(data_dir).glob("**/*.mp4"))
+
+    def __len__(self):
+        return len(self.fps)
+
+    def __getitem__(self, idx):
+        fp = self.fps[idx]
+        video, audio, _ = read_video(str(fp), pts_unit="sec")
+        assert video.shape[1:] == (
+            576,
+            1024,
+            3,
+        ), f"{Path(fp).name} is incorrectly shaped: {video.shape}"
+        return video, audio
+
+
+def collate_av(batch):
+    videos, audios = zip(*batch)
+
+    video = torch.nn.utils.rnn.pad_sequence(videos, padding_value=0.0)
+    video = rearrange(video, "t b h w c -> b t h w c")
+
+    audios = [rearrange(audio, "c t -> t c") for audio in audios]
+    audio = torch.nn.utils.rnn.pad_sequence(audios, padding_value=0.0)
+    audio_left, _audio_right = rearrange(audio, "t b c -> c b t")
+
+    return video, audio_left
+
+
+class VideoDataModule(LightningDataModule):
+    def __init__(self, data_dir, batch_size, num_workers):
+        super().__init__()
+        self.data_dir = data_dir
+        self.batch_size = batch_size
+        self.num_workers = num_workers
+
+    def prepare_data(self):
+        pass
+
+    def setup(self, stage=None):
+        self.train_dataset = VideoDataset(self.data_dir / "train")
+        self.test_dataset = VideoDataset(self.data_dir / "test")
+
+    def train_dataloader(self):
+        return DataLoader(
+            self.train_dataset,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            collate_fn=collate_av,
         )
-        splits[split] = ds
-    dsd = DatasetDict(splits)
-    dsd.save_to_disk(fp_out)
 
-
-def read_video_from_example(example):
-    """Read a video from a dataset example"""
-    fp = example["fp"]
-    video, audio, info = read_video(fp, pts_unit="sec")
-    return {"video": video, "audio": audio, "info": info}
-
-
-def cli():
-    """Command line interface"""
-    import argparse
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--workers", type=int, default=None)
-    parser.add_argument("--fp-out", type=str, default="vox_celeb")
-    args = parser.parse_args()
-
-    tensor_dataset_from_fps(**vars(args))
-
-
-if __name__ == "__main__":
-    cli()
+    def test_dataloader(self):
+        return DataLoader(
+            self.test_dataset,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            collate_fn=collate_av,
+        )
