@@ -12,11 +12,6 @@ download:  ## download vox celeb
 		--workers 6 \
 		--youtube 'yt-dlp'
 
-release:  ## bump patch version
-	@bump-my-version bump patch
-	@git push
-	@git push --tags
-
 lint:  ## clean up the source code
 	@isort .
 	@black .
@@ -28,7 +23,13 @@ push:  ## push the docker image
 	@cog push $(DOCKER_IMG)
 
 run:  ## run something in docker
-	@cog run -e PYTHONPATH=. -p 8888 $(OPT)
+	@cog run \
+		-e HF_DATASETS_CACHE="./hf_cache" \
+		-e TRANSFORMERS_CACHE="./hf_cache" \
+		-e HF_HOME="./hf_cache" \
+		-e PYTHONPATH=. \
+		-p 8888 \
+		$(OPT)
 
 lab:
 	@$(MAKE) run OPT="python -m jupyterlab --allow-root --ip=0.0.0.0"
@@ -37,13 +38,10 @@ poke:  ## run interactive docker shell
 	@$(MAKE) run OPT=bash
 
 train:  ## run the training program
-	@$(MAKE) run OPT="python -O gpt/train.py $(OPT)"
+	@$(MAKE) run OPT="python -O sdvfinetune/train.py $(OPT)"
 
 pip_freeze:
 	@cp requirements.txt requirements.lock
 	@cog run pip freeze > requirements.lock.tmp
 	@rm requirements.lock
 	@mv requirements.lock.tmp requirements.lock
-
-inference:  ## run the inference program
-	@$(MAKE) run OPT="python -O gpt/inference.py $(OPT)"

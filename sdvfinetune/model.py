@@ -3,10 +3,10 @@ from typing import Any
 import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
-from diffusers import AutoencoderKL, UNet2DConditionModel
-from diffusers.optimization import get_scheduler
+from diffusers import AutoencoderKL, UNet2DConditionModel, StableDiffusionPipeline
 from transformers import Wav2Vec2Processor
 from transformers import logging as tsmrs_logging
+
 
 tsmrs_logging.set_verbosity_error()
 
@@ -34,11 +34,12 @@ class SVDLightning(pl.LightningModule):
 
     @classmethod
     def from_config(cls, config):
+        pipe = StableDiffusionPipeline.from_pretrained("CompVis/stable-diffusion-v1-4")
         return cls(
             audio_featurizer=Wav2Vec2Processor.from_pretrained(config.audio_featurizer),
-            scheduler=get_scheduler(config.scheduler),
-            unet=UNet2DConditionModel.from_pretrained(config.model_uri),
-            vae=AutoencoderKL.from_pretrained(config.model_uri),
+            scheduler=pipe.scheduler,
+            unet=pipe.unet,
+            vae=pipe.vae,
             lr=config.lr,
             betas=config.betas,
         )
@@ -53,10 +54,8 @@ class SVDLightning(pl.LightningModule):
         # Encode the video frames
         with torch.no_grad():
             frames = frames * 2 - 1
-            latents = (
-                self.vae.encode(frames).latent_dist.sample()
-                * VAE_TO_UNET_SCALING_FACTOR
-            )
+            latents = self.vae.encode(frames).latent_dist.sample()
+            latents *= VAE_TO_UNET_SCALING_FACTOR
 
         # Encode the audio
         audio_features = self.audio_featurizer(
@@ -81,10 +80,10 @@ class SVDLightning(pl.LightningModule):
         noise_pred = self.unet(noisy_latents, timesteps, audio_features).sample
 
         # Compute the loss
-        loss = F.mse_loss(noise_pred, latents)
+        loss = F.mse_loss(noise_pred, noise)
 
         return loss
-    
+
     def training_step(self, batch, batch_idx):
         return self._step(batch)
 

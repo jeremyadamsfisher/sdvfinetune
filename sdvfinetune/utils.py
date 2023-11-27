@@ -1,15 +1,11 @@
 import os
-import re
 from contextlib import contextmanager, nullcontext
 from pathlib import Path
 from typing import Optional
 from uuid import uuid4
 
-import pytorch_lightning as L
 import wandb
-from gpt import PROJECT_ID, VERSION
-from gpt.config import Config
-from loguru import logger
+from sdvfinetune import __project_id__, __version__
 
 
 def restore_config(node):
@@ -30,7 +26,7 @@ def get_run_name(load_from: Optional[str]):
     if load_from:
         return Path(load_from).parent.name
     else:
-        return f"run-v{VERSION}-{uuid4()}"
+        return f"run-v{__version__}-{uuid4()}"
 
 
 def get_rank_zero_or_single_gpu():
@@ -59,7 +55,7 @@ def run_manager(disable_wandb, load_from):
         ctx = (
             nullcontext
             if disable_wandb
-            else lambda: wandb.init(project=PROJECT_ID, name=name)
+            else lambda: wandb.init(project=__project_id__, name=name)
         )
         with ctx():
             yield name

@@ -1,0 +1,15 @@
+scheduler: constant  # linear, cosine, cosine_with_restarts, polynomial, constant or constant_with_warmup
+audio_featurizer: jonatasgrosman/wav2vec2-large-xlsr-53-english
+model_uri: CompVis/stable-diffusion-v1-4
+lr: 0.0001
+profile: false
+disable_wandb: true
+load_from: null
+save_to: null
+compile: false
+distributed: false
+adam_betas: [0.9, 0.9999]
+accumulate_grad_batches: 1
+batch_size: 1
+num_workers: 6
+n_epochs: 10

@@ -8,17 +8,21 @@ from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.loggers.csv_logs import CSVLogger
 
-from .config import Config
-from .data import VideoDataModule
-from .model import SVDLightning
-from .utils import run_manager
+from sdvfinetune.config import Config
+from sdvfinetune.data import VideoDataModule
+from sdvfinetune.model import SVDLightning
+from sdvfinetune.utils import run_manager
 
 
 @hydra.main(config_path="conf", config_name="config", version_base="1.2")
 def train(cfg: Config):
-    """Train a GPT model."""
+    """Train a Stable Diffusion Video model."""
     with run_manager(cfg.disable_wandb, cfg.load_from) as name:
-        dm = VideoDataModule()
+        dm = VideoDataModule(
+            data_dir="./data",
+            batch_size=cfg.batch_size,
+            num_workers=cfg.num_workers,
+        )
         model = SVDLightning.from_config(cfg)
 
         if cfg.compile:
@@ -46,7 +50,7 @@ def train(cfg: Config):
             callbacks.append(model_cb)
 
         trainer = L.Trainer(
-            max_epochs=cfg.model_config.n_epochs,
+            max_epochs=cfg.n_epochs,
             callbacks=callbacks,
             logger=[logger_],
             accelerator="auto",
