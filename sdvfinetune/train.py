@@ -28,9 +28,6 @@ def train(cfg: Config):
         if cfg.compile:
             model = torch.compile(model)
 
-        if cfg.load_from is None:
-            model.init_weights()
-
         dm.prepare_data()
         dm.setup("fit")
 
@@ -57,7 +54,7 @@ def train(cfg: Config):
             profiler="simple" if cfg.profile else None,
             fast_dev_run=10 if cfg.profile else None,
             precision="bf16-mixed",
-            accumulate_grad_batches=cfg.model_config.accumulate_grad_batches,
+            accumulate_grad_batches=cfg.accumulate_grad_batches,
             default_root_dir=cfg.save_to,
         )
 
