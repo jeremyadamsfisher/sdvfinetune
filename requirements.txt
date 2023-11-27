@@ -5,6 +5,7 @@ hydra-core
 imageio
 jupyterlab
 lightning
+loguru
 matplotlib
 numpy
 Pillow
