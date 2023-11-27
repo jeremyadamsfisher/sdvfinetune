@@ -4,22 +4,22 @@ from datetime import timedelta
 import hydra
 import pytorch_lightning as L
 import torch
-from gpt.callbacks import LogGenerationPeriodically
-from gpt.config import Config
-from gpt.lightning_module import GptLightning
-from gpt.utils import run_manager, summarize
-from gpt.wikipedia import WikipediaDataModule
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.loggers.csv_logs import CSVLogger
+
+from .config import Config
+from .data import VideoDataModule
+from .model import SVDLightning
+from .utils import run_manager
 
 
 @hydra.main(config_path="conf", config_name="config", version_base="1.2")
 def train(cfg: Config):
     """Train a GPT model."""
     with run_manager(cfg.disable_wandb, cfg.load_from) as name:
-        dm = WikipediaDataModule(cfg, profile=cfg.profile)
-        model = GptLightning(cfg.model_config)
+        dm = VideoDataModule()
+        model = SVDLightning.from_config(cfg)
 
         if cfg.compile:
             model = torch.compile(model)
@@ -30,15 +30,8 @@ def train(cfg: Config):
         dm.prepare_data()
         dm.setup("fit")
 
-        summarize(model, cfg, dm)
-
         logger_ = CSVLogger("./csv_logs") if cfg.disable_wandb else WandbLogger()
-        callbacks = [
-            LearningRateMonitor(logging_interval="step"),
-            LogGenerationPeriodically(
-                dm.decode, cfg.log_periodicity, None if cfg.disable_wandb else logger_
-            ),
-        ]
+        callbacks = [LearningRateMonitor(logging_interval="step")]
 
         if cfg.save_to:
             model_cb = ModelCheckpoint(
@@ -56,7 +49,6 @@ def train(cfg: Config):
             max_epochs=cfg.model_config.n_epochs,
             callbacks=callbacks,
             logger=[logger_],
-            val_check_interval=1000,
             accelerator="auto",
             profiler="simple" if cfg.profile else None,
             fast_dev_run=10 if cfg.profile else None,

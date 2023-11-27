@@ -4,20 +4,17 @@ import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
 from diffusers import AutoencoderKL, UNet2DConditionModel
-from torchvision import transforms as tfms
+from diffusers.optimization import get_scheduler
 from transformers import Wav2Vec2Processor
 from transformers import logging as tsmrs_logging
 
 tsmrs_logging.set_verbosity_error()
 
 
-to_tensor = tfms.ToTensor()
-
-
 VAE_TO_UNET_SCALING_FACTOR = 0.18215
 
 
-class StableDiffusionVideoFinetuneLightningModule(pl.LightningModule):
+class SVDLightning(pl.LightningModule):
     def __init__(
         self,
         audio_featurizer: Wav2Vec2Processor,
@@ -25,6 +22,7 @@ class StableDiffusionVideoFinetuneLightningModule(pl.LightningModule):
         unet: UNet2DConditionModel,
         vae: AutoencoderKL,
         lr=None,
+        betas=None,
     ):
         super().__init__()
         self.audio_featurizer = audio_featurizer
@@ -32,9 +30,18 @@ class StableDiffusionVideoFinetuneLightningModule(pl.LightningModule):
         self.unet = unet
         self.vae = vae
         self.lr = lr
+        self.betas = betas
 
-    def training_step(self, batch, batch_idx):
-        return self._step(batch)
+    @classmethod
+    def from_config(cls, config):
+        return cls(
+            audio_featurizer=Wav2Vec2Processor.from_pretrained(config.audio_featurizer),
+            scheduler=get_scheduler(config.scheduler),
+            unet=UNet2DConditionModel.from_pretrained(config.model_uri),
+            vae=AutoencoderKL.from_pretrained(config.model_uri),
+            lr=config.lr,
+            betas=config.betas,
+        )
 
     def _step(self, batch):
         # Get an arbitrary video frame, until SVD is released
@@ -77,6 +84,9 @@ class StableDiffusionVideoFinetuneLightningModule(pl.LightningModule):
         loss = F.mse_loss(noise_pred, latents)
 
         return loss
+    
+    def training_step(self, batch, batch_idx):
+        return self._step(batch)
 
     def configure_optimizers(self):
-        return torch.optim.SGD(self.unet, lr=self.lr)
+        return torch.optim.AdamW(self.unet, lr=self.lr, betas=self.betas)
