@@ -1,14 +1,18 @@
+from pathlib import Path
+
 import torch
 from einops import rearrange
-from torch.utils.data import Dataset, DataLoader
-from pathlib import Path
-from torchvision.io import read_video
 from pytorch_lightning import LightningDataModule
+from torch.utils.data import DataLoader, Dataset
+from torchvision.io import read_video
 
 
 class VideoDataset(Dataset):
     def __init__(self, data_dir):
-        self.fps = sorted(Path(data_dir).glob("**/*.mp4"))
+        fps = Path(data_dir).glob("**/*.mp4")
+        # Check that all videos are non-zero in size
+        fps = [fp for fp in fps if fp.stat().st_size > 0]
+        self.fps = sorted(fps)
 
     def __len__(self):
         return len(self.fps)
