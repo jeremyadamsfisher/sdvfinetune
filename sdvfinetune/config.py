@@ -5,11 +5,12 @@ from dataclasses import dataclass
 class Config:
     """Config class for sdvfinetune."""
 
-    scheduler: str
     audio_featurizer: str
     model_uri: str
     lr: float
     accumulate_grad_batches: int
+    batch_size: int
+    num_workers: int
 
     profile: bool
     disable_wandb: bool

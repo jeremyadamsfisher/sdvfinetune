@@ -252,3 +252,4 @@ service_account*
 video-preprocessing
 youtube-taichi
 data*
+hf_cache
