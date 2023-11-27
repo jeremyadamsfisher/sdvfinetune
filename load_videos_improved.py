@@ -41,6 +41,16 @@ def run(run_args):
         start_time = chunk.start / chunk.fps
         end_time = chunk.end / chunk.fps
 
+        # We ultimately need a 576x1024 video, so we take the specified bounding box
+        # and pad it to the correct aspect ratio
+        delta = int(((right - left) / 1024 * 576 - (bot - top)) / 2)
+        if delta > 0:
+            top -= delta
+            bot += delta
+        elif delta < 0:
+            left += delta
+            right -= delta
+
         fname = (
             chunk.person_id
             + "#"
@@ -74,7 +84,7 @@ def crop_video(video_file, start_time, end_time, left, top, right, bot, out_file
         "-t",
         str(end_time - start_time),
         "-vf",
-        "crop={}:{}:{}:{}".format(right - left, bot - top, left, top),
+        "crop={}:{}:{}:{}, scale=1024:576".format(right - left, bot - top, left, top),
         "-c:a",
         "copy",
         out_file,
@@ -109,16 +119,8 @@ if __name__ == "__main__":
         "--metadata", default="taichi-metadata-new.csv", help="Path to metadata"
     )
     parser.add_argument("--out_folder", default="taichi-png", help="Path to output")
-    parser.add_argument("--format", default=".png", help="Storing format")
     parser.add_argument("--workers", default=1, type=int, help="Number of workers")
     parser.add_argument("--youtube", default="./youtube-dl", help="Path to youtube-dl")
-
-    parser.add_argument(
-        "--image_shape",
-        default=(256, 256),
-        type=lambda x: tuple(map(int, x.split(","))),
-        help="Image shape, None for no resize",
-    )
 
     args = parser.parse_args()
     video_folder = Path(args.video_folder)

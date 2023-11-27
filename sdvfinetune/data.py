@@ -1,10 +1,7 @@
-from pathlib import Path
 import multiprocessing as mp
+from pathlib import Path
 
 from datasets import Dataset, DatasetDict
-from torchvision.io import read_video
-
-from datasets import Dataset
 from torchvision.io import read_video
 
 
@@ -14,7 +11,6 @@ def tensor_dataset_from_fps(fp_out="vox_celeb", workers=None):
     splits = {}
     for split in ["train", "test"]:
         fps = list((Path("Path") / split).glob("**/*.mp4"))
-        fps = fps[:10]
         ds = Dataset.from_dict({"fp": fps})
         ds = ds.map(
             read_video_from_example,
