@@ -5,6 +5,7 @@ einops
 hydra-core
 imageio
 jupyterlab
+librosa
 lightning
 loguru
 matplotlib
@@ -12,6 +13,7 @@ numpy
 Pillow
 scikit-learn
 torch
+torchaudio
 torchvision
 transformers
 wandb
